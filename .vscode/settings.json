@@ -1,0 +1,22 @@
+{
+    "catpaw.enabled": true,
+    "catpaw.ruleFileEnabled": true,
+    "catpaw.inlayEnabled": true,
+    "catpaw.selectionEnabled": true,
+    "catpaw.agentAutocompleteEnabled": true,
+    "files.associations": {
+        "*.mdc": "markdown"
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/docs/design/prototypes": false,
+        "**/docs/design/screenshots": false
+    },
+    "files.exclude": {
+        "**/.claude": false,
+        "**/.cursor": false,
+        "**/.vscode": false
+    },
+    "markdown.preview.fontSize": 14,
+    "editor.fontSize": 14
+}

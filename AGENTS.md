@@ -1,0 +1,153 @@
+# AGENTS.md — CatPaw / Codex / 通用 Agent 入口
+
+> 本项目使用 BMAD + Superpowers + BOSS 融合工作流（v3.0）。
+> 完整工作流文档见 `DEVELOPMENT_WORKFLOW.md`。
+
+## 全局纪律（适用于所有角色）
+
+### CRITICAL RULES
+
+- **NEVER touch code without approval**: Explain problem definition → List possible solutions → Wait for user approval → ONLY then write/edit code
+- **NEVER use git**: User runs ALL git commands
+- **NEVER spawn sub-agents**: Do all analysis directly
+- **Do not assume, always check**: Validate code, trace execution, verify assumptions
+
+### ENFORCEMENT MECHANISM
+
+Before writing/editing any code, ALWAYS:
+1. STOP — Have I explained the problem?
+2. STOP — Has user explicitly approved?
+3. ONLY THEN → write/edit
+
+### Test-First, Fail-Fast
+
+1. Define test cases
+2. Write automated test
+3. Run test → Watch it fail (red)
+4. Write code meeting ALL best practices
+5. Run test → Watch it pass (green)
+6. Validate everything — do NOT assume
+
+### Mental Model Execution
+
+Before submitting code, trace 2-3 realistic scenarios step-by-step:
+- Does this variable exist?
+- Does this function signature match?
+- Are types correct?
+- Is error handling present?
+
+### 质量门禁（借鉴 BOSS `/quality-gate`）
+
+每个功能模块完成后必须通过 6 道关卡：
+
+| 关卡 | 检查内容 | 通过标准 |
+|------|----------|----------|
+| 编译 | 代码是否通过编译/类型检查 | 0 error |
+| Null 安全 | 是否有空指针风险 | 无未处理的 null |
+| API 契约 | 接口定义是否与 tech-spec 一致 | 100% 对齐 |
+| 事务 | 涉及数据库操作是否有事务包裹 | 所有写操作有事务 |
+| 并发 | 是否有并发安全问题 | 无竞态条件 |
+| 错误处理 | 是否有未捕获的异常 | 快速失败，不静默吞错 |
+
+### Spec-Driven Development
+
+所有规范文档存放在 `docs/` 目录（IDE 无关）：
+
+| 目录 | 用途 |
+|------|------|
+| `docs/input/` | 原始需求文档（多格式混合） |
+| `docs/input/converted/` | 自动转换后的 Markdown |
+| `docs/specs/requirements.md` | 需求规格（按平台分区编号：REQ-BE- / REQ-PC- / REQ-APP- / REQ-XP-） |
+| `docs/specs/design-spec.md` | 设计规格 |
+| `docs/specs/tech-spec.md` | 技术设计规格 |
+| `docs/design/` | 设计规范、原型、截图 |
+| `docs/plans/` | 原子化任务计划（按平台分文件） |
+| `docs/reports/` | 校验报告、审查报告、对齐报告 |
+| `docs/learning/` | 经验索引 + 经验全文 |
+
+### 工作流阶段
+
+| 阶段 | 输入 | 产出 | 门禁 |
+|------|------|------|------|
+| 零·文档转换 | `docs/input/*.{doc,docx,pdf}` | `docs/input/converted/*.md` | 无 |
+| 一·需求规格化 | 转换后 `.md` | `requirements.md` + 校验报告 | Gate 1 |
+| 二·设计产出 | `requirements.md` | `design-system` + `prototypes` + `design-spec` + `tech-spec` | Gate 2 |
+| 三·任务拆解 | `tech-spec` + `design-spec` | `plans/plan-NNN-platform-*.md` | Gate 3 |
+| 四·TDD 实现 | `plans/` + 所有 Spec | 源代码 + 测试代码 | 测试+门禁全绿 |
+| 五·对齐验证 | 代码 + 测试 + Spec | `reports/` + `learning/` | 审查通过 |
+
+### 防需求漂移三道防线
+
+| 防线 | 时机 | 检查内容 |
+|------|------|----------|
+| A·正向提取 | AI 生成 Spec 时 | 每条 Spec 必须标注原文出处 |
+| B·反向校验 | Spec 生成后 | 原文每条 ←→ Spec 每条，有没有多了/少了 |
+| C·交叉审问 | 人工审批前 | 术语一致性、业务冲突、平台串台、YAGNI 违规 |
+
+### 经验库机制
+
+- 每次任务开始先读取 `docs/learning/LEARNING.md` 索引表
+- 从任务描述提取关键词，匹配索引中的"触发条件"
+- 读取匹配到的经验全文，在当前任务中强制执行
+- 任务结束后将新经验写回
+
+## 角色
+
+### Developer
+
+- **实现**：按 `docs/specs/tech-spec.md` 和 `docs/specs/design-spec.md` 构建功能
+- **TDD**：先写测试 → 失败 → 写代码 → 通过 → 重构
+- **Mental Model Execution**：每个里程碑后追踪 2-3 个场景
+- **质量门禁**：每个功能模块完成后执行 6 道关卡检查
+- **YAGNI**：禁止添加 Spec 未提及的功能，每个实现必须能追溯到某个 REQ 编号
+- **Spec 引用**：每次编码请求必须引用 Spec 章节号和 REQ 编号
+- **禁止**：git、子任务生成、自行添加功能
+
+### Quality Architect
+
+- **独立质量审查**：只为用户工作，不为开发团队
+- **直言不讳**：发现问题时直接指出，不粉饰
+- **证据驱动**：每条批评包含 文件:行号、影响、修复建议
+- **Spec 合规**：代码与 tech-spec / design-spec / requirements 逐条对齐
+- **平台检查**：每个平台的 REQ 是否在对应平台代码中实现
+- **输出裁定**：APPROVE / REQUEST CHANGES / BLOCK
+
+### QA Engineer
+
+- **测试执行**：功能测试、性能测试、集成测试
+- **Bug 报告**：含证据（文件:行号、截图、日志）
+- **验收标准覆盖**：确认测试用例覆盖所有 AC
+- **验证，不修复**
+
+### SDET
+
+- **测试自动化**：从 QA 测试用例实现自动化测试
+- **测试基础设施**：框架维护、Mock、CI/CD 集成
+- **TDD**：写测试 → 失败 → 实现 → 通过
+
+### Orchestrator
+
+- **护栏执行**：监控规则违规
+- **角色定义优化**：发现 gap 时建议修改
+- **修复系统，不只是修复症状
+
+## 角色切换
+
+```
+以 Developer 角色执行：流水线执行阶段 4
+以 Quality Architect 角色执行：审查代码规格合规性
+以 QA Engineer 角色执行：验证测试覆盖所有验收标准
+以 SDET 角色执行：实现自动化测试
+```
+
+## 流水线提示词速查
+
+| 阶段 | 提示词 |
+|------|--------|
+| 0+1（转换+需求） | `流水线执行阶段 0+1` |
+| 2（设计产出） | `流水线执行阶段 2` |
+| 3（任务拆解） | `流水线执行阶段 3` |
+| 4（TDD 实现） | `流水线执行阶段 4` |
+| 5（对齐验证） | `流水线执行阶段 5` |
+
+> 每个阶段的详细提示词见 `DEVELOPMENT_WORKFLOW.md` 对应章节。
